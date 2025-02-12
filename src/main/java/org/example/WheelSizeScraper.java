@@ -21,7 +21,7 @@ public class WheelSizeScraper {
     public static String  extensionPath = "extensions/uBlock0.chromium";
     private static  String EXCEL_FILE_PATH = "resources/Wheel-Size_2025_10-02.xlsx";
     private static final int RESTART_BROWSER_INTERVAL = 15;
-    private static  int MAX_URLS_TO_PROCESS = 200;
+    private static  int MAX_URLS_TO_PROCESS = 100;
 
 
     static List<String> USER_AGENTS = List.of(
@@ -78,7 +78,8 @@ public class WheelSizeScraper {
             if (urlCell == null) continue;
 
             Cell statusCell = row.getCell(1, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-            if ("Done".equalsIgnoreCase(statusCell.getStringCellValue())) continue;
+            if (("Done".equalsIgnoreCase(statusCell.getStringCellValue())) || ("No Tyres Found".equalsIgnoreCase(statusCell.getStringCellValue())))
+                continue;
 
             String url = urlCell.getStringCellValue().trim();
             counter++;
@@ -100,17 +101,24 @@ public class WheelSizeScraper {
 
         try {
             List<WebElement> tyreRegions = driver.findElements(By.xpath("//div[contains(@class,'trims-list ')]//div[contains(@class,'region-trim')]"));
-            List<WebElement> forbiddenElements = driver.findElements(By.xpath("//h1[text()=‘403 Forbidden’]"));
+            List<WebElement> forbiddenElements = driver.findElements(By.xpath("//h1[text()='403 Forbidden']"));
+            List<WebElement> captchaElements = driver.findElements(By.xpath("//h1[contains(text(),'confirm you are human')]"));
+
             if (tyreRegions.isEmpty() && !forbiddenElements.isEmpty()) {
                 System.out.println("Handle Forbidden Elements");
                 Thread.sleep(300000);
                 statusCell.setCellValue("Page not accessible");
                 saveWorkbook(workbook);
                 return;
-            } else if(tyreRegions.isEmpty() ) {
+            } else if(tyreRegions.isEmpty() && !captchaElements.isEmpty()) {
                 System.out.println("Handle Captcha");
                 Thread.sleep(30000);
                 statusCell.setCellValue("Page not accessible");
+                saveWorkbook(workbook);
+                return;
+            }else if(tyreRegions.isEmpty()) {
+                System.out.println("No Tyres Found");
+                statusCell.setCellValue("No Tyres Found");
                 saveWorkbook(workbook);
                 return;
             }
