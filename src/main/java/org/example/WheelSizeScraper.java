@@ -20,22 +20,24 @@ public class WheelSizeScraper {
 // ✅ Relative to project root
     public static String  extensionPath = "extensions/uBlock0.chromium";
     private static  String EXCEL_FILE_PATH = "resources/Wheel-Size_2025_10-02.xlsx";
-    private static final int RESTART_BROWSER_INTERVAL = 50;
-    private static  int MAX_URLS_TO_PROCESS = 100;
+    private static final int RESTART_BROWSER_INTERVAL = 15;
+    private static  int MAX_URLS_TO_PROCESS = 200;
 
 
-    private static final List<String> USER_AGENTS = List.of(
+    static List<String> USER_AGENTS = List.of(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Firefox/118.0",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Mobile/15E148 Safari/604.1"
     );
 
     private static WebDriver getChromeInstance() {
         WebDriverManager.chromedriver().setup();
         String loadExtension = "load-extension=" + extensionPath;
         ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless=new","--disable-gpu", "--no-sandbox",
-                "--disable-blink-features=AutomationControlled", "start-maximized",
-                loadExtension);
+        options.addArguments("--disable-gpu", "--no-sandbox",
+                "--disable-blink-features=AutomationControlled", "start-maximized");
         // Set a random user-agent
         String randomUserAgent = USER_AGENTS.get(ThreadLocalRandom.current().nextInt(USER_AGENTS.size()));
         options.addArguments("user-agent=" + randomUserAgent);
@@ -86,11 +88,11 @@ public class WheelSizeScraper {
             }else if(counter > MAX_URLS_TO_PROCESS){
                 return;
             }
-            processPage(driver, url, dataSheet, statusCell);
+            processPage(driver, url,workbook, dataSheet, statusCell);
         }
     }
 
-    private static void processPage(WebDriver driver, String url, Sheet dataSheet, Cell statusCell) {
+    private static void processPage(WebDriver driver, String url,Workbook workbook, Sheet dataSheet, Cell statusCell) {
         driver.get(url);
         new WebDriverWait(driver, 30).until(
                 webDriver -> ((JavascriptExecutor) webDriver).executeScript("return document.readyState").equals("complete")
@@ -98,8 +100,18 @@ public class WheelSizeScraper {
 
         try {
             List<WebElement> tyreRegions = driver.findElements(By.xpath("//div[contains(@class,'trims-list ')]//div[contains(@class,'region-trim')]"));
-            if (tyreRegions.isEmpty()) {
+            List<WebElement> forbiddenElements = driver.findElements(By.xpath("//h1[text()=‘403 Forbidden’]"));
+            if (tyreRegions.isEmpty() && !forbiddenElements.isEmpty()) {
+                System.out.println("Handle Forbidden Elements");
+                Thread.sleep(300000);
                 statusCell.setCellValue("Page not accessible");
+                saveWorkbook(workbook);
+                return;
+            } else if(tyreRegions.isEmpty() ) {
+                System.out.println("Handle Captcha");
+                Thread.sleep(30000);
+                statusCell.setCellValue("Page not accessible");
+                saveWorkbook(workbook);
                 return;
             }
 
@@ -110,6 +122,8 @@ public class WheelSizeScraper {
         } catch (NoSuchElementException e) {
             System.err.println("Element not found on page: " + url);
             statusCell.setCellValue("Failed");
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
