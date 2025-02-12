@@ -29,6 +29,20 @@ public class WheelSizeScraper {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
     );
 
+    private static WebDriver getChromeInstance() {
+        WebDriverManager.chromedriver().setup();
+        String loadExtension = "load-extension=" + extensionPath;
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--headless=new","--disable-gpu", "--no-sandbox",
+                "--disable-blink-features=AutomationControlled", "start-maximized",
+                loadExtension);
+        // Set a random user-agent
+        String randomUserAgent = USER_AGENTS.get(ThreadLocalRandom.current().nextInt(USER_AGENTS.size()));
+        options.addArguments("user-agent=" + randomUserAgent);
+        return new ChromeDriver(options);
+    }
+
+
     public static void main(String[] args) {
 
 
@@ -42,20 +56,6 @@ public class WheelSizeScraper {
         }
     }
 
-    private static WebDriver getChromeInstance() {
-        WebDriverManager.chromedriver().setup();
-        String loadExtension = "load-extension=" + extensionPath;
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless", "--disable-gpu", "--no-sandbox",
-                "--disable-blink-features=AutomationControlled", "start-maximized",
-                loadExtension);
-
-        // Set a random user-agent
-        String randomUserAgent = USER_AGENTS.get(ThreadLocalRandom.current().nextInt(USER_AGENTS.size()));
-        options.addArguments("user-agent=" + randomUserAgent);
-        return new ChromeDriver(options);
-    }
-
     private static void processUrls(WebDriver driver, Workbook workbook) {
         Sheet urlSheet = workbook.getSheet("All Links");
         Sheet dataSheet = workbook.getSheet("Data");
@@ -65,12 +65,9 @@ public class WheelSizeScraper {
             return;
         }
 
-
         int counter = 0;
 
-
         for (int i = 1; i <= urlSheet.getLastRowNum(); i++) {
-
 
             Row row = urlSheet.getRow(i);
             if (row == null) continue;
@@ -125,6 +122,7 @@ public class WheelSizeScraper {
 
         int lastDataRow = dataSheet.getLastRowNum()+1;
 
+
         for (WebElement tyre : tyres) {
             Row dataRow = dataSheet.createRow(lastDataRow++);
             dataRow.createCell(0).setCellValue(url);
@@ -137,9 +135,10 @@ public class WheelSizeScraper {
             dataRow.createCell(7).setCellValue(pattern);
             dataRow.createCell(8).setCellValue(yearModel);
             dataRow.createCell(9).setCellValue(description);
-
-            statusCell.setCellValue("Done");
         }
+
+        if(!tyres.isEmpty()) statusCell.setCellValue("Done") ;
+
         System.out.println("Extracted & Updated: " + url);
     }
 
