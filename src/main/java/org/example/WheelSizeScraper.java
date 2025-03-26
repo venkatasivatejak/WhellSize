@@ -13,6 +13,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.time.format.DateTimeFormatter;
+import java.time.LocalDateTime;
 
 public class WheelSizeScraper {
 
@@ -60,7 +62,10 @@ public class WheelSizeScraper {
 
     private static void processUrls(WebDriver driver, Workbook workbook) {
         Sheet urlSheet = workbook.getSheet("All Links");
-        Sheet dataSheet = workbook.getSheet("Data");
+        //create new sheet
+
+        //Sheet dataSheet = workbook.getSheet("Data");
+        Sheet dataSheet = createSheet(workbook);
 
         if (urlSheet == null || dataSheet == null) {
             System.err.println("Error: Sheets not found!");
@@ -91,6 +96,39 @@ public class WheelSizeScraper {
             }
             processPage(driver, url,workbook, dataSheet, statusCell);
         }
+    }
+
+    private static Sheet createSheet(Workbook workbook ) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+        String timestamp = LocalDateTime.now().format(formatter);
+        String sheetName = "Data_" + timestamp;
+        Sheet sheet = workbook.createSheet(sheetName);
+        System.out.println("sheet created");
+
+        // Create a header row
+        Row headerRow = sheet.createRow(0);
+
+        // Define the headers
+        String[] headers = {"Source Url", "Tire", "Rim", "Offset Rangemm","Backspacingmm","Tire Weightkg","Tire Pressure (front / rear)bar","Pattern","Year-Model","Description"};
+
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+
+            // Apply bold style
+            CellStyle style = workbook.createCellStyle();
+            Font font = workbook.createFont();
+            font.setBold(true);
+            style.setFont(font);
+            cell.setCellStyle(style);
+        }
+
+        // Auto-size columns
+        for (int i = 0; i < headers.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
+        saveWorkbook(workbook);
+        return sheet;
     }
 
     private static void processPage(WebDriver driver, String url,Workbook workbook, Sheet dataSheet, Cell statusCell) {
