@@ -48,19 +48,23 @@ public class WheelSizeScraper {
 
 
     public static void main(String[] args) {
-
+        WebDriver driver = null;
 
         try (Workbook workbook = new XSSFWorkbook(new FileInputStream(EXCEL_FILE_PATH))) {
-            WebDriver driver = getChromeInstance();
-            processUrls(driver, workbook);
-            saveWorkbook(workbook);
-            driver.quit();
+            
+            try {
+                driver = processUrls(workbook);
+            } finally {
+                saveWorkbook(workbook); //  Always save at the end
+                if (driver != null) driver.quit();
+            }
         } catch (IOException e) {
             System.err.println("Error handling Excel file: " + e.getMessage());
         }
     }
 
-    private static void processUrls(WebDriver driver, Workbook workbook) {
+    private static WebDriver processUrls(Workbook workbook) {
+       WebDriver driver = getChromeInstance();
         Sheet urlSheet = workbook.getSheet("All Links");
         //create new sheet
 
@@ -69,7 +73,7 @@ public class WheelSizeScraper {
 
         if (urlSheet == null || dataSheet == null) {
             System.err.println("Error: Sheets not found!");
-            return;
+            return driver;
         }
 
         int counter = 0;
@@ -91,11 +95,17 @@ public class WheelSizeScraper {
             if (counter % RESTART_BROWSER_INTERVAL == 0) {
                 driver.quit();
                 driver = getChromeInstance();
-            }else if(counter > MAX_URLS_TO_PROCESS){
-                return;
+            }else if(counter % 100==0){
+                dataSheet = createSheet(workbook);
+            }
+            else if(counter > MAX_URLS_TO_PROCESS){
+                return driver;
             }
             processPage(driver, url,workbook, dataSheet, statusCell);
         }
+
+        return driver;
+
     }
 
     private static Sheet createSheet(Workbook workbook ) {
@@ -124,9 +134,9 @@ public class WheelSizeScraper {
         }
 
         // Auto-size columns
-        for (int i = 0; i < headers.length; i++) {
-            sheet.autoSizeColumn(i);
-        }
+//        for (int i = 0; i < headers.length; i++) {
+//            sheet.autoSizeColumn(i);
+//        }
         saveWorkbook(workbook);
         return sheet;
     }
@@ -146,18 +156,15 @@ public class WheelSizeScraper {
                 System.out.println("Handle Forbidden Elements");
                 Thread.sleep(300000);
                 statusCell.setCellValue("Page not accessible");
-                saveWorkbook(workbook);
                 return;
             } else if(tyreRegions.isEmpty() && !captchaElements.isEmpty()) {
                 System.out.println("Handle Captcha");
                 Thread.sleep(30000);
                 statusCell.setCellValue("Page not accessible");
-                saveWorkbook(workbook);
                 return;
             }else if(tyreRegions.isEmpty()) {
                 System.out.println("No Tyres Found");
                 statusCell.setCellValue("No Tyres Found");
-                saveWorkbook(workbook);
                 return;
             }
 
